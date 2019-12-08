@@ -4,14 +4,14 @@ import numpy as np
 def preprocess(path):
   """
   takes in raw data convert into:
-  [['Municipal', 'B-NP'], ['bonds', 'I-NP'],..., <eol>, ... ]
+  [['Municipal', 'B-NP'], ['bonds', 'I-NP'],..., ["", "<eol>"], ... ]
   """
   raw = open(path, "r", encoding="utf-8").read().splitlines()
 
   data = []
   for chunk in raw:
     if chunk != "": data.append(chunk.split())
-    else: data.append("<eol>")
+    else: data.append(["", "<eol>"])
     # <eol> marks end of line
 
   return data
@@ -26,14 +26,12 @@ def get_count(data):
   count_x = {}
   count_y = {}
 
-  # [[x, y], ...<eol>, ...] is [["Municipal", "B-VP"], ..., <eol>, ...]
+  # [[x, y], ...<eol>, ...] is [["Municipal", "B-VP"], ..., ["", "<eol>"], ...]
   for chunk in data:
-    if chunk == "<eol>": continue
-    else:
-      x = chunk[0]
-      y = chunk[1]
-      count_x[x] = count_x.get(x, 0) + 1
-      count_y[y] = count_y.get(y, 0) + 1
+    x = chunk[0]
+    y = chunk[1]
+    count_x[x] = count_x.get(x, 0) + 1
+    count_y[y] = count_y.get(y, 0) + 1
 
   return count_x, count_y
 
@@ -72,7 +70,11 @@ def get_emission_param(data, k):
   # use it to initialize np.zeros
   total_x = len(count_x.keys())
   total_y = len(count_y.keys())
-  count_y_x = np.zeros((total_y, total_x))
+  count_y_x = np.zeros((total_y, total_x), dtype="float")
+
+  eol = count_y['<eol>']
+  del count_y['<eol>']
+  count_y['<eol>'] = eol
 
   # conversion between i => x or y and vice versa x or y => i
   i2x = list(count_x)
@@ -82,7 +84,7 @@ def get_emission_param(data, k):
 
   # fill in emission params
   for i in range(len(data)):
-    if data[i] == "<eol>": continue
+    if data[i][0] == "<eol>": continue
     else:
       count_y_x[y2i[data[i][1]], x2i.get(data[i][0], x2i['#UNK#'])] += 1
 
@@ -116,17 +118,17 @@ def predict_y(params, in_path, out_path):
 
   best_y = get_e_argmax(e)
   # go line by line of test dev_in and label and write to dev_out
-  for line in dev_in:
-    if line != "":
-      x = line
+  for x in dev_in:
+    if x != "":
       if x2i.get(x, -1) == -1: # could not find x, word = #UNK#
         x = "#UNK#"
       y = i2y[best_y[x2i[x]]]
-      dev_out.write(f"{line} {y}\n")
+      dev_out.write(f"{x} {y}\n")
 
-    else: dev_out.write(f"{line}\n")
+    else: dev_out.write(f"{x}\n")
     # if empty line, just copy empty line cause it's the end of sentence
 
+  dev_out.close()
   return out_path
 
 # for unit testing
@@ -140,6 +142,7 @@ if __name__ == "__main__":
   AL_in = os.path.join("AL", "dev.in")
   AL_out = os.path.join("AL", "dev.p2.out")
   AL_out = predict_y(AL_params, AL_in, AL_out)
+  print(f"Finished writing {AL_out}\n")
 
   # CN
   CN = os.path.join("CN", "train")
@@ -148,6 +151,7 @@ if __name__ == "__main__":
   CN_in = os.path.join("CN", "dev.in")
   CN_out = os.path.join("CN", "dev.p2.out")
   CN_out = predict_y(CN_params, CN_in, CN_out)
+  print(f"Finished writing {CN_out}\n")
 
   # EN
   EN = os.path.join("EN", "train")
@@ -156,6 +160,7 @@ if __name__ == "__main__":
   EN_in = os.path.join("EN", "dev.in")
   EN_out = os.path.join("EN", "dev.p2.out")
   EN_out = predict_y(EN_params, EN_in, EN_out)
+  print(f"Finished writing {EN_out}\n")
 
   # SG
   SG = os.path.join("SG", "train")
@@ -164,3 +169,4 @@ if __name__ == "__main__":
   SG_in = os.path.join("SG", "dev.in")
   SG_out = os.path.join("SG", "dev.p2.out")
   SG_out = predict_y(SG_params, SG_in, SG_out)
+  print(f"Finished writing {SG_out}\n")
