@@ -74,6 +74,10 @@ def get_emission_param(data, k):
   total_y = len(count_y.keys())
   count_y_x = np.zeros((total_y, total_x), dtype="float")
 
+  eol = count_y['<eol>']
+  del count_y['<eol>']
+  count_y['<eol>'] = eol
+
   # conversion between i => x or y and vice versa x or y => i
   i2x = list(count_x)
   i2y = list(count_y)

@@ -10,34 +10,43 @@ def k_viterbi(k, sentence, e, q, params):
   x2i = params[3]
   y2i = params[4]
 
-  n = len(i2y)-1
+  # k layers
+  new_pi_shape = (k, e.shape[0], len(sentence))
+  new_pointer_shape = (k, e.shape[0], len(sentence)-1)
 
   # now holds k values from 1st to kth top
-  pi = np.full((k, e.shape[0], len(sentence)),np.NINF)
-  previous = np.full((k, e.shape[0], len(sentence)-1), -1)
+  pi = np.full(new_pi_shape, np.NINF)
+  previous = np.full(new_pointer_shape, -1)
+
+  n = len(i2y) - 1
+
   pi[0, :n, 0] = q[y2i['<eol>'], :n] + e[:n, x2i.get(sentence[0], x2i['#UNK#'])]
 
-  for i in range(1,len(sentence)):
-    alpha = pi[:,:,i-1:i]+np.tile(q,(k,1,1))
-    alpha = np.concatenate(alpha,axis=0)
+  for i in range(1, len(sentence)):
+    layer = np.tile(q, (k,1,1))
+    alpha = pi[:,:,i-1:i] + layer
+    alpha = np.concatenate(alpha, axis=0)
 
-    idx = np.argsort(alpha,axis=0)[::-1]
-    previous[:,:n,i-1] = idx[:k,:n]%(n+1)
+    index = np.argsort(alpha,axis=0)[::-1]
+    previous[:, :n, i-1] = index[:k, :n] % (n+1)
 
     for j in range(n):
-        pi[:,j,i] = alpha[:,j][idx[:k,j]]+e[j,x2i.get(sentence[i],x2i['#UNK#'])]
+        pi[:, j, i] = alpha[:, j][index[:k,j]] + e[j, x2i.get(sentence[i], x2i['#UNK#'])]
 
-  alpha = pi[:,:,len(sentence)-1:len(sentence)]+np.tile(q,(k,1,1))
-  alpha = np.concatenate(alpha,axis=0)[:,n]
-  idx = np.argsort(alpha,axis=0)[::-1][:k]
-  idx = idx%(n+1)
-  all_y = [i2y[idx[-1]]]
-  prev = idx[-1]
-  rank = np.sum(idx==idx[-1])
+  alpha = pi[:, :, len(sentence)-1:len(sentence)] + layer
+  alpha = np.concatenate(alpha, axis=0)[:, n]
 
-  for i in range(len(sentence)-1,0,-1):
-    new_prev = previous[rank-1,prev,i-1]
-    rank = np.sum(previous[:,prev,i-1][:rank]==new_prev)
+  index = np.argsort(alpha, axis=0)[::-1][:k]
+  index = index % (n+1)
+
+  all_y = [i2y[index[-1]]]
+  prev = index[-1]
+  rank = np.sum(index==index[-1])
+
+  # trace back
+  for i in range(len(sentence)-1, 0, -1):
+    new_prev = previous[rank-1, prev, i-1]
+    rank = np.sum(previous[:, prev, i-1][:rank] == new_prev)
     prev = new_prev
     all_y.append(i2y[prev])
 

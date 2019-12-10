@@ -33,7 +33,7 @@ def get_transition_param(data, k):
   # add one here, because the iteration will go up to len - 1 and last one is <eol>
   count_u_v[y2i["<eol>"], y2i[data[0][1]]] += 1
   for i in range(len(data)-1):
-      count_u_v[y2i[data[i][1]], y2i[data[i+1][1]]] += 1
+    count_u_v[y2i[data[i][1]], y2i[data[i+1][1]]] += 1
 
   # do q(v|u) = count(u -> v) / count(u) for each u which is y
   q = count_u_v
