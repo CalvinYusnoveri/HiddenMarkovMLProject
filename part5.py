@@ -8,6 +8,7 @@ def get_forward_backward_emission(data, k):
   """
   find forward emission and backward emission
   """
+
   # calls the previous functions to parse raw and get_count
   data = preprocess(data)
   count_x, count_y = get_count(data)
