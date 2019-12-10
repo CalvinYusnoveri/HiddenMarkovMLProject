@@ -10,59 +10,55 @@ def k_viterbi(k, sentence, e, q, params):
   x2i = params[3]
   y2i = params[4]
 
-
-  n_tag = len(i2y)-1
+  n = len(i2y)-1
 
   # now holds k values from 1st to kth top
   pi = np.full((k, e.shape[0], len(sentence)),np.NINF)
-  parents = np.full((k, e.shape[0], len(sentence)-1), -1)
-  pi[0, :n_tag, 0] = q[y2i['<eol>'], :n_tag] + e[:n_tag, x2i.get(sentence[0], x2i['#UNK#'])]
+  previous = np.full((k, e.shape[0], len(sentence)-1), -1)
+  pi[0, :n, 0] = q[y2i['<eol>'], :n] + e[:n, x2i.get(sentence[0], x2i['#UNK#'])]
 
   for i in range(1,len(sentence)):
-    t_cost = pi[:,:,i-1:i]+np.tile(q,(k,1,1))
-    t_cost = np.concatenate(t_cost,axis=0)
+    alpha = pi[:,:,i-1:i]+np.tile(q,(k,1,1))
+    alpha = np.concatenate(alpha,axis=0)
 
-    idx = np.argsort(t_cost,axis=0)[::-1]
-    parents[:,:n_tag,i-1] = idx[:k,:n_tag]%(n_tag+1)
+    idx = np.argsort(alpha,axis=0)[::-1]
+    previous[:,:n,i-1] = idx[:k,:n]%(n+1)
 
-    for j in range(n_tag):
-        pi[:,j,i] = t_cost[:,j][idx[:k,j]]+e[j,x2i.get(sentence[i],x2i['#UNK#'])]
+    for j in range(n):
+        pi[:,j,i] = alpha[:,j][idx[:k,j]]+e[j,x2i.get(sentence[i],x2i['#UNK#'])]
 
-  t_cost = pi[:,:,len(sentence)-1:len(sentence)]+np.tile(q,(k,1,1))
-  t_cost = np.concatenate(t_cost,axis=0)[:,n_tag]
-  idx = np.argsort(t_cost,axis=0)[::-1][:k]
-  idx = idx%(n_tag+1)
-  tag_seq = [i2y[idx[-1]]]
-  parent = idx[-1]
+  alpha = pi[:,:,len(sentence)-1:len(sentence)]+np.tile(q,(k,1,1))
+  alpha = np.concatenate(alpha,axis=0)[:,n]
+  idx = np.argsort(alpha,axis=0)[::-1][:k]
+  idx = idx%(n+1)
+  all_y = [i2y[idx[-1]]]
+  prev = idx[-1]
   rank = np.sum(idx==idx[-1])
 
   for i in range(len(sentence)-1,0,-1):
-    new_parent = parents[rank-1,parent,i-1]
-    rank = np.sum(parents[:,parent,i-1][:rank]==new_parent)
-    parent = new_parent
-    tag_seq.append(i2y[parent])
+    new_prev = previous[rank-1,prev,i-1]
+    rank = np.sum(previous[:,prev,i-1][:rank]==new_prev)
+    prev = new_prev
+    all_y.append(i2y[prev])
 
-  return tag_seq[::-1]
+  return all_y[::-1]
 
 def predict_all_y(k, params, e, in_path, out_path):
   q = params[0]
-  # fix underflow
-  e = np.log(e+0.000001)
-  q = np.log(q+0.000001)
+  e = np.log(e + 0.000001)
+  q = np.log(q + 0.000001)
 
   dev_in = open(in_path, "r", encoding="utf-8").read().splitlines()
-  with open(out_path,'w', encoding="utf-8") as f_result:
-      sentence = []
-      for x in dev_in:
-          if x == '':
-              all_y = k_viterbi(k, sentence, e, q, params)
-              f_result.write('\n'.join(['{} {}'.format(w,t) for w,t in zip(sentence,all_y)]))
-              f_result.write('\n\n')
-              sentence = []
-              # break
-          else:
-              sentence.append(x)
+  dev_out = open(out_path,'w', encoding="utf-8")
 
+  sentence = []
+  for x in dev_in:
+    if x == '':
+      all_y = k_viterbi(k, sentence, e, q, params)
+      dev_out.write('\n'.join([f'{x} {y}' for x, y in zip(sentence,all_y)]))
+      dev_out.write('\n\n')
+      sentence = []
+    else: sentence.append(x)
   return out_path
 
 def run(smooth_k, viterbi_k):

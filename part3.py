@@ -42,7 +42,11 @@ def get_transition_param(data, k):
 
   return q, i2x, i2y, x2i, y2i
 
-def viterbi(sentence, e, q, y2i, x2i, i2y, i2x):
+def viterbi(sentence, e, q, params):
+  i2x = params[1]
+  i2y = params[2]
+  x2i = params[3]
+  y2i = params[4]
 
   # initialize node values and pointer
   pi = np.zeros((e.shape[0], len(sentence)))
@@ -52,7 +56,7 @@ def viterbi(sentence, e, q, y2i, x2i, i2y, i2x):
   n = len(i2y)-1
 
   # the first node
-  pi[:n,0] = q[y2i["<eol>"], :n] + e[:n, x2i.get(sentence[0], x2i['#UNK#'])]
+  pi[:n, 0] = q[y2i["<eol>"], :n] + e[:n, x2i.get(sentence[0], x2i['#UNK#'])]
 
   # dynamically compute highest probability
   for i in range(1, len(sentence)):
@@ -65,36 +69,28 @@ def viterbi(sentence, e, q, y2i, x2i, i2y, i2x):
   prev = np.argmax(alpha[:n,n], axis=0)
   all_y = [i2y[prev]]
 
-  for i in range(len(sentence)-1,0,-1):
-    prev = previous[prev,i-1]
+  for i in range(len(sentence)-1, 0, -1):
+    prev = previous[prev, i-1]
     all_y.append(i2y[prev])
 
   return all_y[::-1]
 
 def predict_all_y(params, e, in_path, out_path):
   q = params[0]
-  i2x = params[1]
-  i2y = params[2]
-  x2i = params[3]
-  y2i = params[4]
-
-  # fix underflow
-  e = np.log(e+0.000001)
-  q = np.log(q+0.000001)
+  e = np.log(e + 0.000001)
+  q = np.log(q + 0.000001)
 
   dev_in = open(in_path, "r", encoding="utf-8").read().splitlines()
-  with open(out_path,'w', encoding="utf-8") as f_result:
-      sentence = []
-      for x in dev_in:
-          if x == '':
-              all_y = viterbi(sentence, e, q, y2i, x2i, i2y, i2x)
-              f_result.write('\n'.join(['{} {}'.format(w,t) for w,t in zip(sentence,all_y)]))
-              f_result.write('\n\n')
-              sentence = []
-              # break
-          else:
-              sentence.append(x)
+  dev_out = open(out_path,'w', encoding="utf-8")
 
+  sentence = []
+  for x in dev_in:
+    if x == '':
+      all_y = viterbi(sentence, e, q, params)
+      dev_out.write('\n'.join([f'{x} {y}' for x, y in zip(sentence,all_y)]))
+      dev_out.write('\n\n')
+      sentence = []
+    else: sentence.append(x)
   return out_path
 
 def run(smoothing_k):
