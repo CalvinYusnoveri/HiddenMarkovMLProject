@@ -4,7 +4,12 @@ import numpy as np
 from part2 import preprocess, get_count, do_smoothing, get_emission_param, evalResult
 from part3 import get_transition_param
 
-def k_viterbi(k, sentence, e, q, y2i, x2i, i2y, i2x):
+def k_viterbi(k, sentence, e, q, params):
+  i2x = params[1]
+  i2y = params[2]
+  x2i = params[3]
+  y2i = params[4]
+
 
   n_tag = len(i2y)-1
 
@@ -41,11 +46,6 @@ def k_viterbi(k, sentence, e, q, y2i, x2i, i2y, i2x):
 
 def predict_all_y(k, params, e, in_path, out_path):
   q = params[0]
-  i2x = params[1]
-  i2y = params[2]
-  x2i = params[3]
-  y2i = params[4]
-
   # fix underflow
   e = np.log(e+0.000001)
   q = np.log(q+0.000001)
@@ -55,7 +55,7 @@ def predict_all_y(k, params, e, in_path, out_path):
       sentence = []
       for x in dev_in:
           if x == '':
-              all_y = k_viterbi(k, sentence, e, q, y2i, x2i, i2y, i2x)
+              all_y = k_viterbi(k, sentence, e, q, params)
               f_result.write('\n'.join(['{} {}'.format(w,t) for w,t in zip(sentence,all_y)]))
               f_result.write('\n\n')
               sentence = []

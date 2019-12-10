@@ -44,30 +44,32 @@ def get_transition_param(data, k):
 
 def viterbi(sentence, e, q, y2i, x2i, i2y, i2x):
 
-  n_tag = len(i2y)-1
-  pi = np.zeros((e.shape[0], len(sentence)))              # table with maximum value of each node
-  parents = np.full((e.shape[0], len(sentence)-1 ), -1)   # the parent of the maximum value
+  # initialize node values and pointer
+  pi = np.zeros((e.shape[0], len(sentence)))
+  previous = np.full((e.shape[0], len(sentence)-1 ), -1)
+
+  # number of tags (y)
+  n = len(i2y)-1
 
   # the first node
-  pi[:n_tag,0] = q[y2i["<eol>"], :n_tag] + e[:n_tag, x2i.get(sentence[0], x2i['#UNK#'])]
+  pi[:n,0] = q[y2i["<eol>"], :n] + e[:n, x2i.get(sentence[0], x2i['#UNK#'])]
 
   # dynamically compute highest probability
   for i in range(1, len(sentence)):
-    t_cost = pi[:, i-1].reshape(-1,1) + q
-    parents[:n_tag, i-1] = np.argmax(t_cost[:n_tag,:n_tag], axis=0)
-
-    pi[:n_tag, i] = np.max(t_cost[:n_tag,:n_tag], axis=0) + e[:n_tag, x2i.get(sentence[i], x2i['#UNK#'])]
+    alpha = pi[:, i-1].reshape(-1,1) + q
+    previous[:n, i-1] = np.argmax(alpha[:n,:n], axis=0)
+    pi[:n, i] = np.max(alpha[:n,:n], axis=0) + e[:n, x2i.get(sentence[i], x2i['#UNK#'])]
 
   # the last node
-  t_cost = pi[:,len(sentence)-1].reshape(-1,1) + q
-  parent = np.argmax(t_cost[:n_tag,n_tag], axis=0)
-  tag_seq = [i2y[parent]]
+  alpha = pi[:,len(sentence)-1].reshape(-1,1) + q
+  prev = np.argmax(alpha[:n,n], axis=0)
+  all_y = [i2y[prev]]
 
   for i in range(len(sentence)-1,0,-1):
-    parent = parents[parent,i-1]
-    tag_seq.append(i2y[parent])
+    prev = previous[prev,i-1]
+    all_y.append(i2y[prev])
 
-  return tag_seq[::-1]
+  return all_y[::-1]
 
 def predict_all_y(params, e, in_path, out_path):
   q = params[0]
